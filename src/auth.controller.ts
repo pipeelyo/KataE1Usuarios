@@ -21,6 +21,7 @@ export class AuthController {
         email: payload.email,
         name: typeof payload.name === "string" ? payload.name : undefined,
         picture: typeof payload.picture === "string" ? payload.picture : undefined,
+        phone: typeof payload.phone_number === "string" ? payload.phone_number : undefined,
       };
     } catch {
       throw new UnauthorizedException();
