@@ -1,13 +1,18 @@
 import { Controller, Get, Headers, UnauthorizedException } from "@nestjs/common";
+import { ApiBearerAuth, ApiOkResponse, ApiTags, ApiUnauthorizedResponse } from "@nestjs/swagger";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
 const jwks = createRemoteJWKSet(
   new URL("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com"),
 );
 
+@ApiTags("auth")
 @Controller("auth")
 export class AuthController {
   @Get("me")
+  @ApiBearerAuth()
+  @ApiUnauthorizedResponse()
+  @ApiOkResponse({ description: "Claims del JWT de Firebase" })
   async me(@Headers("authorization") auth?: string) {
     const token = auth?.replace(/^Bearer\s+/i, "");
     if (!token) throw new UnauthorizedException();

@@ -1,6 +1,8 @@
 import { Controller, Get } from "@nestjs/common";
+import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import * as net from "net";
 import { CircuitBreaker } from "./circuit-breaker";
+import { RedisService } from "./redis.service";
 
 const rabbitBreaker = new CircuitBreaker("rabbitmq", 3, 10_000);
 
@@ -30,9 +32,13 @@ function pingRabbit(timeoutMs = 1500) {
   });
 }
 
+@ApiTags("resilience")
 @Controller("resilience")
 export class ResilienceController {
+  constructor(private readonly redis: RedisService) {}
+
   @Get()
+  @ApiOkResponse({ description: "RabbitMQ circuit breaker + ping al pool Redis" })
   async status() {
     let rabbit: "up" | "down" | "circuit-open" = "down";
     try {
@@ -41,9 +47,21 @@ export class ResilienceController {
     } catch (e) {
       rabbit = e instanceof Error && e.message.startsWith("circuit-open") ? "circuit-open" : "down";
     }
+
+    let redis: "up" | "down" = "down";
+    try {
+      await this.redis.ping();
+      redis = "up";
+    } catch {
+      redis = "down";
+    }
+
+    const ok = rabbit === "up" && redis === "up";
     return {
-      status: rabbit === "up" ? "ok" : "degraded",
+      status: ok ? "ok" : "degraded",
       rabbit,
+      redis,
+      redisPoolSize: this.redis.size(),
       circuit: rabbitBreaker.snapshot(),
     };
   }
